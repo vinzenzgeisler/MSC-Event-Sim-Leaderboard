@@ -7,43 +7,45 @@
 }
 
 :root {
-  --clr-bg: #0a0f1a;
-  --clr-surface: #111827;
-  --clr-border: #1e2d40;
-  --clr-accent: #e63946;
-  --clr-gold: #f4c430;
-  --clr-silver: #c0c0c0;
-  --clr-bronze: #cd7f32;
-  --clr-text: #f8fafc;
-  --clr-muted: #94a3b8;
-  --font-mono: "Barlow Mono", "Courier New", monospace;
-  --font-sans: "Barlow", system-ui, sans-serif;
+  /* MSC Corporate Identity */
+  --msc-blue: #2455a4;
+  --msc-blue-dark: #1a3d7a;
+  --msc-blue-light: #3a6dc7;
+  --msc-gold: #f5c000;
+  --msc-gold-dark: #d4a800;
+
+  --bg: #0b1423;
+  --surface: #111d31;
+  --surface-2: #162240;
+  --border: rgba(36, 85, 164, 0.35);
+  --text: #f0f4ff;
+  --muted: #8899bb;
 }
 
 html,
 body,
 #root {
   height: 100%;
-  background: var(--clr-bg);
-  color: var(--clr-text);
-  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Scrolling leaderboard entries */
 @keyframes scroll-up {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(-50%);
-  }
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
 }
 
-.scrolling-list {
-  animation: scroll-up var(--scroll-duration, 20s) linear infinite;
+.auto-scroll {
+  animation: scroll-up var(--dur, 20s) linear infinite;
 }
-
-.scrolling-list:hover {
+.auto-scroll:hover {
   animation-play-state: paused;
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 192, 0, 0.3); }
+  50%       { box-shadow: 0 0 20px 4px rgba(245, 192, 0, 0.15); }
 }
