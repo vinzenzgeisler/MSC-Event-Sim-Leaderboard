@@ -1,26 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchLeaderboard } from "./api";
+import { fetchLeaderboard, fetchTheme } from "./api";
 import { formatTimeMs } from "./utils";
 import type { SimDay, SimEntry } from "./types";
 
 const POLL_MS = 10_000;
-const THEME_KEY = "sim-leaderboard-theme";
 
 /* ─── helpers ───────────────────────────────────────────────────────────── */
 
 function dayLabel(d: SimDay) {
   return d === "saturday" ? "Samstag" : "Sonntag";
-}
-
-/** Initial theme: URL param → localStorage → "dark" */
-function initTheme(): "dark" | "light" {
-  const param = new URLSearchParams(window.location.search).get("theme");
-  if (param === "light" || param === "dark") {
-    localStorage.setItem(THEME_KEY, param);
-    return param;
-  }
-  const stored = localStorage.getItem(THEME_KEY);
-  return stored === "light" ? "light" : "dark";
 }
 
 /* ─── Medal colours ─────────────────────────────────────────────────────── */
@@ -109,34 +97,18 @@ function Row({ entry, rank, rowBorder, nameClr, timeClr }: {
 
 /* ─── Main ────────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [isDark, setIsDark] = useState(initTheme() === "dark");
+  const [isDark, setIsDark] = useState(true);
   const [entries, setEntries] = useState<SimEntry[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState(false);
 
-  /* toggle theme: double-click logo OR press 'd' key */
-  const toggleTheme = useCallback(() => {
-    setIsDark(d => {
-      const next = !d;
-      localStorage.setItem(THEME_KEY, next ? "dark" : "light");
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "d" || e.key === "D") toggleTheme();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [toggleTheme]);
-
-  /* load ALL entries (no day filter) */
+  /* load entries + theme from backend */
   const load = useCallback(async () => {
     try {
-      const res = await fetchLeaderboard(); // no day param → all entries
+      const [res, theme] = await Promise.all([fetchLeaderboard(), fetchTheme()]);
       const sorted = [...res.entries].sort((a, b) => a.bestTimeMs - b.bestTimeMs);
       setEntries(sorted);
+      setIsDark(theme === "dark");
       setLastUpdated(new Date());
       setError(false);
     } catch {
@@ -207,9 +179,7 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <img
             src="/msc-logo.png" alt="MSC Logo"
-            style={{ height: 50, objectFit: "contain", cursor: "pointer", userSelect: "none" }}
-            onDoubleClick={toggleTheme}
-            title="Doppelklick: Theme wechseln"
+            style={{ height: 50, objectFit: "contain" }}
           />
           <div>
             <div style={{ fontSize: "clamp(1rem, 2.5vw, 1.4rem)", fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>
@@ -286,7 +256,6 @@ export default function App() {
       {/* FOOTER */}
       <footer style={{ padding: "5px 24px", borderTop: `1px solid ${tk.dividerClr}`, fontSize: 10, color: tk.footerClr, display: "flex", justifyContent: "space-between", flexShrink: 0, background: tk.footerBg }}>
         <span>MSC Oberlausitzer Dreiländereck e.V.</span>
-        <span style={{ opacity: 0.4 }}>d = Theme wechseln</span>
       </footer>
     </div>
   );
