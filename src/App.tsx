@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchLeaderboard } from "./api";
 import { formatTimeMs } from "./utils";
 import type { SimDay, SimEntry } from "./types";
 
 const POLL_INTERVAL_MS = 10_000;
-const SCROLL_PAUSE_MS = 4_000; // pause on top-3 before scrolling to rest
 
 // ---------------------------------------------------------------------------
 // Medal colours
