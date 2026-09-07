@@ -4,34 +4,34 @@ import { formatTimeMs } from "./utils";
 import type { SimDay, SimEntry } from "./types";
 
 const POLL_MS = 10_000;
+const THEME_KEY = "sim-leaderboard-theme";
 
-/* ─── helpers ──────────────────────────────────────────────────────────────── */
-
-function currentDay(): SimDay {
-  return new Date().getDay() === 6 ? "saturday" : "sunday";
-}
+/* ─── helpers ───────────────────────────────────────────────────────────── */
 
 function dayLabel(d: SimDay) {
   return d === "saturday" ? "Samstag" : "Sonntag";
 }
 
-function getTheme(): "dark" | "light" {
-  return new URLSearchParams(window.location.search).get("theme") === "light"
-    ? "light"
-    : "dark";
+/** Initial theme: URL param → localStorage → "dark" */
+function initTheme(): "dark" | "light" {
+  const param = new URLSearchParams(window.location.search).get("theme");
+  if (param === "light" || param === "dark") {
+    localStorage.setItem(THEME_KEY, param);
+    return param;
+  }
+  const stored = localStorage.getItem(THEME_KEY);
+  return stored === "light" ? "light" : "dark";
 }
 
-/* ─── Medal colours ─────────────────────────────────────────────────────────── */
+/* ─── Medal colours ─────────────────────────────────────────────────────── */
 const MEDAL = [
   { border: "#f5c000", glow: "rgba(245,192,0,.45)", num: "1" },
   { border: "#c0c0c0", glow: "rgba(192,192,192,.35)", num: "2" },
   { border: "#cd7f32", glow: "rgba(205,127,50,.35)", num: "3" },
 ];
 
-/* ─── Podium card ────────────────────────────────────────────────────────────── */
-function Podium({
-  entry, rank, height, podiumBg, textClr,
-}: {
+/* ─── Podium card ────────────────────────────────────────────────────────── */
+function Podium({ entry, rank, height, podiumBg, textClr }: {
   entry: SimEntry; rank: number; height: string;
   podiumBg: string; textClr: string;
 }) {
@@ -61,28 +61,30 @@ function Podium({
       <div style={{
         fontFamily: "monospace", fontWeight: 700,
         fontSize: "clamp(1.2rem, 3vw, 2rem)",
-        color: m.border,
-        letterSpacing: "0.04em",
-        lineHeight: 1,
+        color: m.border, letterSpacing: "0.04em", lineHeight: 1,
       }}>
         {formatTimeMs(entry.bestTimeMs)}
       </div>
 
       <div style={{
-        fontSize: "clamp(.9rem, 2vw, 1.15rem)",
-        fontWeight: 600,
-        color: textClr,
-        textAlign: "center",
-        wordBreak: "break-word",
-        lineHeight: 1.2,
+        fontSize: "clamp(.85rem, 1.8vw, 1.1rem)", fontWeight: 600,
+        color: textClr, textAlign: "center", wordBreak: "break-word", lineHeight: 1.2,
       }}>
         {entry.name}
+      </div>
+
+      {/* Day badge */}
+      <div style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
+        color: m.border, opacity: 0.7, textTransform: "uppercase",
+      }}>
+        {dayLabel(entry.day as SimDay)}
       </div>
     </div>
   );
 }
 
-/* ─── Rest row ───────────────────────────────────────────────────────────────── */
+/* ─── Rest row ───────────────────────────────────────────────────────────── */
 function Row({ entry, rank, rowBorder, nameClr, timeClr }: {
   entry: SimEntry; rank: number;
   rowBorder: string; nameClr: string; timeClr: string;
@@ -95,6 +97,9 @@ function Row({ entry, rank, rowBorder, nameClr, timeClr }: {
     }}>
       <span style={{ width: 32, fontSize: 13, color: "#8899bb", fontWeight: 700 }}>{rank}</span>
       <span style={{ flex: 1, fontSize: "1.05rem", fontWeight: 600, color: nameClr }}>{entry.name}</span>
+      <span style={{ fontSize: 11, color: "#8899bb", marginRight: 12, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+        {dayLabel(entry.day as SimDay)}
+      </span>
       <span style={{ fontFamily: "monospace", fontSize: "1.1rem", fontWeight: 700, color: timeClr }}>
         {formatTimeMs(entry.bestTimeMs)}
       </span>
@@ -102,24 +107,42 @@ function Row({ entry, rank, rowBorder, nameClr, timeClr }: {
   );
 }
 
-/* ─── Main ────────────────────────────────────────────────────────────────────── */
+/* ─── Main ────────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [isDark] = useState(() => getTheme() === "dark");
-  const [day] = useState<SimDay>(currentDay);
+  const [isDark, setIsDark] = useState(initTheme() === "dark");
   const [entries, setEntries] = useState<SimEntry[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState(false);
 
+  /* toggle theme: double-click logo OR press 'd' key */
+  const toggleTheme = useCallback(() => {
+    setIsDark(d => {
+      const next = !d;
+      localStorage.setItem(THEME_KEY, next ? "dark" : "light");
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "d" || e.key === "D") toggleTheme();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleTheme]);
+
+  /* load ALL entries (no day filter) */
   const load = useCallback(async () => {
     try {
-      const res = await fetchLeaderboard(day);
-      setEntries([...res.entries].filter(e => e.day === day).sort((a, b) => a.bestTimeMs - b.bestTimeMs));
+      const res = await fetchLeaderboard(); // no day param → all entries
+      const sorted = [...res.entries].sort((a, b) => a.bestTimeMs - b.bestTimeMs);
+      setEntries(sorted);
       setLastUpdated(new Date());
       setError(false);
     } catch {
       setError(true);
     }
-  }, [day]);
+  }, []);
 
   useEffect(() => {
     load();
@@ -173,7 +196,7 @@ export default function App() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: tk.bg, overflow: "hidden" }}>
 
-      {/* HEADER */}
+      {/* HEADER – double-click logo toggles theme */}
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "10px 24px",
@@ -182,13 +205,18 @@ export default function App() {
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src="/msc-logo.png" alt="MSC Logo" style={{ height: 50, objectFit: "contain" }} />
+          <img
+            src="/msc-logo.png" alt="MSC Logo"
+            style={{ height: 50, objectFit: "contain", cursor: "pointer", userSelect: "none" }}
+            onDoubleClick={toggleTheme}
+            title="Doppelklick: Theme wechseln"
+          />
           <div>
             <div style={{ fontSize: "clamp(1rem, 2.5vw, 1.4rem)", fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>
               Simulator-Bestenliste
             </div>
             <div style={{ fontSize: "clamp(.7rem, 1.5vw, .85rem)", color: tk.subtitleClr, fontWeight: 600, marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              MSC Oberlausitzer Dreiländereck · {dayLabel(day)}
+              MSC Oberlausitzer Dreiländereck
             </div>
           </div>
         </div>
@@ -208,7 +236,7 @@ export default function App() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
             <div style={{ fontSize: 48, opacity: .3 }}>🏁</div>
             <div style={{ color: tk.emptyClr, fontSize: "1.1rem" }}>
-              Noch keine Zeiten für {dayLabel(day)} eingetragen.
+              Noch keine Zeiten eingetragen.
             </div>
           </div>
         ) : (
@@ -258,6 +286,7 @@ export default function App() {
       {/* FOOTER */}
       <footer style={{ padding: "5px 24px", borderTop: `1px solid ${tk.dividerClr}`, fontSize: 10, color: tk.footerClr, display: "flex", justifyContent: "space-between", flexShrink: 0, background: tk.footerBg }}>
         <span>MSC Oberlausitzer Dreiländereck e.V.</span>
+        <span style={{ opacity: 0.4 }}>d = Theme wechseln</span>
       </footer>
     </div>
   );
