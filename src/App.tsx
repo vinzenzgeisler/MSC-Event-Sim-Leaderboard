@@ -165,17 +165,13 @@ export default function App() {
           </div>
         </div>
 
-        {/* right: status */}
-        <div style={{ fontSize: 12, color: "#8899bb", textAlign: "right" }}>
-          {error
-            ? <span style={{ color: "#ef4444" }}>⚠ Verbindungsfehler</span>
-            : lastUpdated
-              ? <>Aktualisiert {lastUpdated.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</>
-              : "Lade…"
-          }
-          <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>
-            Aktualisierung alle {POLL_MS / 1000}s
-          </div>
+        {/* right: last-updated dot (silent) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: error ? "#ef444455" : lastUpdated ? "#22c55e" : "#f5c00088",
+            transition: "background .5s",
+          }} />
         </div>
       </header>
 
@@ -274,7 +270,6 @@ export default function App() {
         flexShrink: 0,
         background: "#0d1829",
       }}>
-        <span>sim.event.msc-oberlausitz.de</span>
         <span>MSC Oberlausitzer Dreiländereck e.V.</span>
       </footer>
     </div>
