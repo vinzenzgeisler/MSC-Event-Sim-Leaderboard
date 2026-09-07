@@ -5,109 +5,199 @@ import type { SimDay, SimEntry } from "./types";
 
 const POLL_MS = 10_000;
 
-/* ─── helpers ───────────────────────────────────────────────────────────── */
-
 function dayLabel(d: SimDay) {
-  return d === "saturday" ? "Samstag" : "Sonntag";
+  return d === "saturday" ? "Sa" : "So";
 }
 
-/* ─── Medal colours ─────────────────────────────────────────────────────── */
-const MEDAL = [
-  { border: "#f5c000", glow: "rgba(245,192,0,.45)", num: "1" },
-  { border: "#c0c0c0", glow: "rgba(192,192,192,.35)", num: "2" },
-  { border: "#cd7f32", glow: "rgba(205,127,50,.35)", num: "3" },
-];
+/* ── theme tokens ─────────────────────────────────────────────────────── */
+function tokens(dark: boolean) {
+  return dark ? {
+    pageBg:    "#07111f",
+    heroGrad:  "linear-gradient(160deg, #0f2040 0%, #07111f 60%)",
+    cardBg:    "rgba(255,255,255,.04)",
+    cardBdr:   "rgba(36,85,164,.4)",
+    textHero:  "#f0f6ff",
+    textName:  "#ddeeff",
+    textTime:  "#ffffff",
+    textMuted: "#5a7aaa",
+    timeAccent:"#f5c000",
+    divider:   "rgba(36,85,164,.25)",
+    rowHover:  "rgba(36,85,164,.12)",
+    rankClr:   "#3a5888",
+    listBg:    "#07111f",
+    footerBg:  "#040c18",
+    footerClr: "#1e3a6a",
+    gradFade:  "#07111f",
+    emptyClr:  "#1e3055",
+  } : {
+    pageBg:    "#dce6f5",
+    heroGrad:  "linear-gradient(160deg, #2455a4 0%, #1a3d7a 60%)",
+    cardBg:    "rgba(255,255,255,.85)",
+    cardBdr:   "rgba(36,85,164,.3)",
+    textHero:  "#ffffff",
+    textName:  "#ffffff",
+    textTime:  "#ffffff",
+    textMuted: "#8faacc",
+    timeAccent:"#f5c000",
+    divider:   "rgba(36,85,164,.2)",
+    rowHover:  "rgba(36,85,164,.07)",
+    rankClr:   "#6080b0",
+    listBg:    "#dce6f5",
+    footerBg:  "#1a3d7a",
+    footerClr: "#6090c0",
+    gradFade:  "#dce6f5",
+    emptyClr:  "#7090c0",
+  };
+}
 
-/* ─── Podium card ────────────────────────────────────────────────────────── */
-function Podium({ entry, rank, height, podiumBg, textClr }: {
-  entry: SimEntry; rank: number; height: string;
-  podiumBg: string; textClr: string;
-}) {
-  const m = MEDAL[rank];
+const MEDAL_CLR = ["#f5c000", "#c0c0c0", "#cd7f32"];
+const MEDAL_GLOW = ["rgba(245,192,0,.5)", "rgba(192,192,192,.4)", "rgba(205,127,50,.4)"];
+
+/* ── Winner card (full width) ─────────────────────────────────────────── */
+function WinnerCard({ entry, tk }: { entry: SimEntry; tk: ReturnType<typeof tokens> }) {
   return (
     <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "flex-end", flex: 1,
-      background: podiumBg,
-      border: `2px solid ${m.border}44`,
-      borderRadius: 16,
-      padding: "20px 12px 20px",
-      gap: 10,
-      minHeight: height,
       position: "relative",
-      boxShadow: `0 0 28px ${m.glow}`,
+      padding: "28px 36px 28px",
+      display: "flex",
+      alignItems: "center",
+      gap: 32,
+      overflow: "hidden",
     }}>
+      {/* Number badge */}
       <div style={{
-        position: "absolute", top: -18,
-        width: 36, height: 36, borderRadius: "50%",
-        background: m.border,
+        width: 64, height: 64,
+        borderRadius: "50%",
+        background: MEDAL_CLR[0],
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 16, fontWeight: 800, color: "#111",
-        boxShadow: `0 2px 12px ${m.glow}`,
-      }}>{m.num}</div>
+        fontSize: 28, fontWeight: 900, color: "#111",
+        boxShadow: `0 4px 24px ${MEDAL_GLOW[0]}`,
+        flexShrink: 0,
+      }}>1</div>
 
+      {/* Name + day */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: "clamp(1.8rem, 5vw, 3.2rem)",
+          fontWeight: 900,
+          color: tk.textHero,
+          lineHeight: 1,
+          letterSpacing: "-0.01em",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {entry.name}
+        </div>
+        <div style={{ fontSize: 13, color: tk.textMuted, marginTop: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          {dayLabel(entry.day as SimDay)}
+        </div>
+      </div>
+
+      {/* Time */}
       <div style={{
-        fontFamily: "monospace", fontWeight: 700,
-        fontSize: "clamp(1.2rem, 3vw, 2rem)",
-        color: m.border, letterSpacing: "0.04em", lineHeight: 1,
+        fontFamily: "monospace",
+        fontSize: "clamp(2rem, 6vw, 4rem)",
+        fontWeight: 900,
+        color: tk.timeAccent,
+        letterSpacing: "0.04em",
+        lineHeight: 1,
+        flexShrink: 0,
+        textShadow: `0 0 32px ${MEDAL_GLOW[0]}`,
       }}>
         {formatTimeMs(entry.bestTimeMs)}
-      </div>
-
-      <div style={{
-        fontSize: "clamp(.85rem, 1.8vw, 1.1rem)", fontWeight: 600,
-        color: textClr, textAlign: "center", wordBreak: "break-word", lineHeight: 1.2,
-      }}>
-        {entry.name}
-      </div>
-
-      {/* Day badge */}
-      <div style={{
-        fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
-        color: m.border, opacity: 0.7, textTransform: "uppercase",
-      }}>
-        {dayLabel(entry.day as SimDay)}
       </div>
     </div>
   );
 }
 
-/* ─── Rest row ───────────────────────────────────────────────────────────── */
-function Row({ entry, rank, rowBorder, nameClr, timeClr }: {
-  entry: SimEntry; rank: number;
-  rowBorder: string; nameClr: string; timeClr: string;
-}) {
+/* ── Podium slot for #2 / #3 ─────────────────────────────────────────── */
+function PodiumSlot({ entry, rank, tk }: { entry: SimEntry; rank: number; tk: ReturnType<typeof tokens> }) {
+  const clr = MEDAL_CLR[rank];
+  const glow = MEDAL_GLOW[rank];
+  return (
+    <div style={{
+      flex: 1,
+      padding: "20px 24px",
+      background: tk.cardBg,
+      border: `1.5px solid ${clr}44`,
+      borderTop: `3px solid ${clr}`,
+      borderRadius: 12,
+      display: "flex",
+      alignItems: "center",
+      gap: 16,
+      boxShadow: `0 4px 20px ${glow}`,
+    }}>
+      {/* Badge */}
+      <div style={{
+        width: 40, height: 40,
+        borderRadius: "50%",
+        background: clr,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 18, fontWeight: 900, color: "#111",
+        flexShrink: 0,
+      }}>{rank + 1}</div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: "clamp(1rem, 2.5vw, 1.4rem)",
+          fontWeight: 700,
+          color: tk.textName,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          lineHeight: 1.1,
+        }}>{entry.name}</div>
+        <div style={{ fontSize: 11, color: tk.textMuted, marginTop: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          {dayLabel(entry.day as SimDay)}
+        </div>
+      </div>
+
+      <div style={{
+        fontFamily: "monospace",
+        fontSize: "clamp(1.1rem, 2.5vw, 1.6rem)",
+        fontWeight: 800,
+        color: clr,
+      }}>
+        {formatTimeMs(entry.bestTimeMs)}
+      </div>
+    </div>
+  );
+}
+
+/* ── List row for rank 4+ ─────────────────────────────────────────────── */
+function ListRow({ entry, rank, tk }: { entry: SimEntry; rank: number; tk: ReturnType<typeof tokens> }) {
   return (
     <div style={{
       display: "flex", alignItems: "center",
-      padding: "10px 20px",
-      borderBottom: `1px solid ${rowBorder}`,
+      padding: "11px 20px",
+      borderBottom: `1px solid ${tk.divider}`,
     }}>
-      <span style={{ width: 32, fontSize: 13, color: "#8899bb", fontWeight: 700 }}>{rank}</span>
-      <span style={{ flex: 1, fontSize: "1.05rem", fontWeight: 600, color: nameClr }}>{entry.name}</span>
-      <span style={{ fontSize: 11, color: "#8899bb", marginRight: 12, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+      <span style={{ width: 36, fontSize: 13, fontWeight: 700, color: tk.rankClr }}>{rank}</span>
+      <span style={{ flex: 1, fontSize: "1rem", fontWeight: 600, color: tk.textName, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {entry.name}
+      </span>
+      <span style={{ fontSize: 11, color: tk.textMuted, marginRight: 16, letterSpacing: "0.08em", textTransform: "uppercase" }}>
         {dayLabel(entry.day as SimDay)}
       </span>
-      <span style={{ fontFamily: "monospace", fontSize: "1.1rem", fontWeight: 700, color: timeClr }}>
+      <span style={{ fontFamily: "monospace", fontSize: "1rem", fontWeight: 700, color: tk.textMuted }}>
         {formatTimeMs(entry.bestTimeMs)}
       </span>
     </div>
   );
 }
 
-/* ─── Main ────────────────────────────────────────────────────────────────── */
+/* ── App ──────────────────────────────────────────────────────────────── */
 export default function App() {
   const [isDark, setIsDark] = useState(true);
   const [entries, setEntries] = useState<SimEntry[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState(false);
 
-  /* load entries + theme from backend */
   const load = useCallback(async () => {
     try {
       const [res, theme] = await Promise.all([fetchLeaderboard(), fetchTheme()]);
-      const sorted = [...res.entries].sort((a, b) => a.bestTimeMs - b.bestTimeMs);
-      setEntries(sorted);
+      setEntries([...res.entries].sort((a, b) => a.bestTimeMs - b.bestTimeMs));
       setIsDark(theme === "dark");
       setLastUpdated(new Date());
       setError(false);
@@ -122,140 +212,83 @@ export default function App() {
     return () => clearInterval(t);
   }, [load]);
 
-  /* ── theme tokens ── */
-  const tk = isDark ? {
-    bg:           "#0b1423",
-    text:         "#f0f4ff",
-    muted:        "#8899bb",
-    headerBg:     "linear-gradient(90deg, #162240 0%, #0d1829 100%)",
-    headerBorder: "#2455a4",
-    subtitleClr:  "#f5c000",
-    footerBg:     "#0d1829",
-    footerClr:    "#2455a4",
-    podiumBg:     "linear-gradient(180deg, rgba(36,85,164,.18) 0%, rgba(36,85,164,.06) 100%)",
-    rowBorder:    "rgba(36,85,164,.2)",
-    nameClr:      "#e8eeff",
-    timeClr:      "#8ab4f8",
-    emptyClr:     "#2a3a55",
-    placeholderBorder: "2px dashed rgba(36,85,164,.25)",
-    dividerClr:   "rgba(36,85,164,.3)",
-    gradFade:     "#0b1423",
-  } : {
-    bg:           "#f0f4fb",
-    text:         "#1a2455",
-    muted:        "#6b82aa",
-    headerBg:     "linear-gradient(90deg, #2455a4 0%, #1a3d7a 100%)",
-    headerBorder: "#1a3d7a",
-    subtitleClr:  "#f5c000",
-    footerBg:     "#1e3a7a",
-    footerClr:    "#a0bce8",
-    podiumBg:     "linear-gradient(180deg, rgba(36,85,164,.1) 0%, rgba(36,85,164,.03) 100%)",
-    rowBorder:    "rgba(36,85,164,.12)",
-    nameClr:      "#1a2455",
-    timeClr:      "#2455a4",
-    emptyClr:     "#6b82aa",
-    placeholderBorder: "2px dashed rgba(36,85,164,.15)",
-    dividerClr:   "rgba(36,85,164,.2)",
-    gradFade:     "#f0f4fb",
-  };
-
-  const top3 = entries.slice(0, 3);
-  const rest  = entries.slice(3);
-  const scrollDur = Math.max(14, rest.length * 3);
-  const podiumOrder = [top3[1], top3[0], top3[2]];
-  const heights = ["155px", "190px", "130px"];
+  const tk = tokens(isDark);
+  const [p1, p2, p3, ...rest] = entries;
+  const scrollDur = Math.max(12, rest.length * 3);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: tk.bg, overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: tk.pageBg, color: tk.textName, fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
 
-      {/* HEADER – double-click logo toggles theme */}
+      {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "10px 24px",
-        background: tk.headerBg,
-        borderBottom: `2px solid ${tk.headerBorder}`,
+        background: "linear-gradient(90deg, #2455a4 0%, #1a3d7a 100%)",
+        borderBottom: "3px solid #f5c000",
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img
-            src="/msc-logo.png" alt="MSC Logo"
-            style={{ height: 50, objectFit: "contain" }}
-          />
+          <img src="/msc-logo.png" alt="MSC" style={{ height: 44, objectFit: "contain" }} />
           <div>
-            <div style={{ fontSize: "clamp(1rem, 2.5vw, 1.4rem)", fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>
+            <div style={{ fontSize: "clamp(.95rem, 2.2vw, 1.3rem)", fontWeight: 800, color: "#fff", lineHeight: 1 }}>
               Simulator-Bestenliste
             </div>
-            <div style={{ fontSize: "clamp(.7rem, 1.5vw, .85rem)", color: tk.subtitleClr, fontWeight: 600, marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "clamp(.6rem, 1.2vw, .78rem)", color: "#f5c000", fontWeight: 700, marginTop: 3, letterSpacing: "0.1em", textTransform: "uppercase" }}>
               MSC Oberlausitzer Dreiländereck
             </div>
           </div>
         </div>
-
-        {/* silent status dot */}
-        <div style={{
-          width: 8, height: 8, borderRadius: "50%",
-          background: error ? "#ef444455" : lastUpdated ? "#22c55e" : "#f5c00088",
-          transition: "background .5s",
-        }} />
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: error ? "#ef4444" : lastUpdated ? "#22c55e" : "#f5c00088", transition: "background .5s" }} />
       </header>
 
-      {/* BODY */}
+      {/* ── BODY ───────────────────────────────────────────────────────── */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {entries.length === 0 ? (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-            <div style={{ fontSize: 48, opacity: .3 }}>🏁</div>
-            <div style={{ color: tk.emptyClr, fontSize: "1.1rem" }}>
-              Noch keine Zeiten eingetragen.
-            </div>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+            <div style={{ fontSize: 52, opacity: .25 }}>🏁</div>
+            <div style={{ fontSize: "1.1rem", color: tk.emptyClr }}>Noch keine Zeiten eingetragen.</div>
           </div>
         ) : (
           <>
-            {/* PODIUM */}
-            <section style={{ padding: "28px 24px 16px", flexShrink: 0 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", color: "#f5c000", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, height: 1, background: "rgba(245,192,0,.3)" }} />
-                TOP 3
-                <div style={{ flex: 1, height: 1, background: "rgba(245,192,0,.3)" }} />
-              </div>
+            {/* HERO: Winner */}
+            <div style={{ background: tk.heroGrad, flexShrink: 0, borderBottom: `1px solid ${tk.divider}` }}>
+              {p1 && <WinnerCard entry={p1} tk={tk} />}
+            </div>
 
-              <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                {podiumOrder.map((entry, i) => {
-                  if (!entry) return (
-                    <div key={i} style={{ flex: 1, minHeight: heights[i], border: tk.placeholderBorder, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", color: tk.emptyClr, fontSize: 18 }}>–</div>
-                  );
-                  const rankIndex = i === 0 ? 1 : i === 1 ? 0 : 2;
-                  return <Podium key={entry.id} entry={entry} rank={rankIndex} height={heights[i]} podiumBg={tk.podiumBg} textClr={tk.text} />;
-                })}
-              </div>
-            </section>
-
-            {/* DIVIDER */}
-            {rest.length > 0 && (
-              <div style={{ margin: "0 24px", borderTop: `1px solid ${tk.dividerClr}`, display: "flex", alignItems: "center", gap: 12, padding: "6px 0" }}>
-                <span style={{ fontSize: 10, color: tk.muted, letterSpacing: "0.12em", textTransform: "uppercase" }}>Weitere Platzierungen</span>
-                <div style={{ flex: 1, height: 1, background: tk.dividerClr }} />
+            {/* P2 + P3 */}
+            {(p2 || p3) && (
+              <div style={{ display: "flex", gap: 12, padding: "14px 20px", flexShrink: 0, background: tk.pageBg }}>
+                {p2 && <PodiumSlot entry={p2} rank={1} tk={tk} />}
+                {p3 && <PodiumSlot entry={p3} rank={2} tk={tk} />}
               </div>
             )}
 
-            {/* SCROLLING LIST */}
+            {/* Rest */}
             {rest.length > 0 && (
-              <section style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, zIndex: 2, background: `linear-gradient(to bottom, transparent, ${tk.gradFade})`, pointerEvents: "none" }} />
-                <div className="auto-scroll" style={{ "--dur": `${scrollDur}s` } as React.CSSProperties}>
-                  {[...rest, ...rest].map((e, i) => (
-                    <Row key={`${e.id}-${i}`} entry={e} rank={i % rest.length + 4} rowBorder={tk.rowBorder} nameClr={tk.nameClr} timeClr={tk.timeClr} />
-                  ))}
+              <>
+                <div style={{ margin: "0 20px", borderTop: `1px solid ${tk.divider}`, display: "flex", alignItems: "center", gap: 10, padding: "5px 0", flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: tk.textMuted, letterSpacing: "0.14em", textTransform: "uppercase" }}>Weitere Platzierungen</span>
+                  <div style={{ flex: 1, height: 1, background: tk.divider }} />
                 </div>
-              </section>
+
+                <section style={{ flex: 1, overflow: "hidden", position: "relative", background: tk.listBg }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 50, background: `linear-gradient(to bottom, transparent, ${tk.gradFade})`, zIndex: 2, pointerEvents: "none" }} />
+                  <div className="auto-scroll" style={{ "--dur": `${scrollDur}s` } as React.CSSProperties}>
+                    {[...rest, ...rest].map((e, i) => (
+                      <ListRow key={`${e.id}-${i}`} entry={e} rank={i % rest.length + 4} tk={tk} />
+                    ))}
+                  </div>
+                </section>
+              </>
             )}
           </>
         )}
       </main>
 
-      {/* FOOTER */}
-      <footer style={{ padding: "5px 24px", borderTop: `1px solid ${tk.dividerClr}`, fontSize: 10, color: tk.footerClr, display: "flex", justifyContent: "space-between", flexShrink: 0, background: tk.footerBg }}>
-        <span>MSC Oberlausitzer Dreiländereck e.V.</span>
+      {/* ── FOOTER ─────────────────────────────────────────────────────── */}
+      <footer style={{ padding: "4px 24px", borderTop: `1px solid ${tk.divider}`, fontSize: 10, color: tk.footerClr, background: tk.footerBg, flexShrink: 0 }}>
+        MSC Oberlausitzer Dreiländereck e.V.
       </footer>
     </div>
   );
