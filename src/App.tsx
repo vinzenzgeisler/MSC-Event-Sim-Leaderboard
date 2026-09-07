@@ -3,121 +3,97 @@ import { fetchLeaderboard } from "./api";
 import { formatTimeMs } from "./utils";
 import type { SimDay, SimEntry } from "./types";
 
-const POLL_INTERVAL_MS = 10_000;
+const POLL_MS = 10_000;
 
-// ---------------------------------------------------------------------------
-// Medal colours
-// ---------------------------------------------------------------------------
-const MEDAL: Record<number, { bg: string; text: string; label: string }> = {
-  0: { bg: "#f4c430", text: "#1a1200", label: "1" },
-  1: { bg: "#c0c0c0", text: "#1a1a1a", label: "2" },
-  2: { bg: "#cd7f32", text: "#1a0d00", label: "3" }
-};
+/* ─── helpers ─────────────────────────────────────────────────────────────── */
 
-// ---------------------------------------------------------------------------
-// Podium card
-// ---------------------------------------------------------------------------
-function PodiumCard({
-  rank,
-  entry,
-  order
-}: {
-  rank: number;
-  entry: SimEntry;
-  order: "first" | "second" | "third";
-}) {
-  const medal = MEDAL[rank];
-  const sizes = {
-    first: "flex-[1.4] text-5xl py-8",
-    second: "flex-[1.1] text-4xl py-6",
-    third: "flex-1 text-3xl py-4"
-  };
+function currentDay(): SimDay {
+  return new Date().getDay() === 6 ? "saturday" : "sunday";
+}
 
+function dayLabel(d: SimDay) {
+  return d === "saturday" ? "Samstag" : "Sonntag";
+}
+
+/* ─── Medal ring ───────────────────────────────────────────────────────────── */
+const MEDAL = [
+  { border: "#f5c000", glow: "rgba(245,192,0,.5)",  num: "1" },
+  { border: "#c0c0c0", glow: "rgba(192,192,192,.4)", num: "2" },
+  { border: "#cd7f32", glow: "rgba(205,127,50,.4)",  num: "3" },
+];
+
+/* ─── Podium card ──────────────────────────────────────────────────────────── */
+function Podium({ entry, rank, height }: { entry: SimEntry; rank: number; height: string }) {
+  const m = MEDAL[rank];
   return (
-    <div
-      className={`flex flex-col items-center justify-end rounded-2xl px-6 text-center transition-all ${sizes[order]}`}
-      style={{ background: "rgba(255,255,255,0.04)", border: `2px solid ${medal.bg}33` }}
-    >
-      {/* Rank badge */}
-      <div
-        className="rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl mb-3 flex-shrink-0"
-        style={{ background: medal.bg, color: medal.text }}
-      >
-        {medal.label}
-      </div>
-      {/* Time */}
-      <div className="font-mono font-bold text-white" style={{ fontSize: "inherit" }}>
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
+      justifyContent: "flex-end", flex: 1,
+      background: "linear-gradient(180deg, rgba(36,85,164,.18) 0%, rgba(36,85,164,.06) 100%)",
+      border: `2px solid ${m.border}44`,
+      borderRadius: 16,
+      padding: "20px 12px 20px",
+      gap: 10,
+      minHeight: height,
+      position: "relative",
+      boxShadow: `0 0 28px ${m.glow}`,
+    }}>
+      {/* rank badge */}
+      <div style={{
+        position: "absolute", top: -18,
+        width: 36, height: 36, borderRadius: "50%",
+        background: m.border,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 16, fontWeight: 800, color: "#111",
+        boxShadow: `0 2px 12px ${m.glow}`,
+      }}>{m.num}</div>
+
+      {/* time */}
+      <div style={{
+        fontFamily: "monospace", fontWeight: 700,
+        fontSize: "clamp(1.2rem, 3vw, 2rem)",
+        color: m.border,
+        letterSpacing: "0.04em",
+        lineHeight: 1,
+      }}>
         {formatTimeMs(entry.bestTimeMs)}
       </div>
-      {/* Name */}
-      <div className="mt-2 text-base font-semibold" style={{ color: medal.bg, wordBreak: "break-word" }}>
+
+      {/* name */}
+      <div style={{
+        fontSize: "clamp(.9rem, 2vw, 1.15rem)",
+        fontWeight: 600,
+        color: "#f0f4ff",
+        textAlign: "center",
+        wordBreak: "break-word",
+        lineHeight: 1.2,
+      }}>
         {entry.name}
       </div>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Rest list row
-// ---------------------------------------------------------------------------
-function ListRow({ rank, entry }: { rank: number; entry: SimEntry }) {
+/* ─── Rest row ─────────────────────────────────────────────────────────────── */
+function Row({ entry, rank }: { entry: SimEntry; rank: number }) {
   return (
-    <div
-      className="flex items-center px-6 py-3 border-b"
-      style={{ borderColor: "rgba(255,255,255,0.07)" }}
-    >
-      <span className="w-10 text-sm font-bold" style={{ color: "#94a3b8" }}>
-        {rank}
-      </span>
-      <span className="flex-1 font-semibold text-white text-lg truncate">{entry.name}</span>
-      <span className="font-mono text-xl font-bold" style={{ color: "#94a3b8" }}>
+    <div style={{
+      display: "flex", alignItems: "center",
+      padding: "10px 20px",
+      borderBottom: "1px solid rgba(36,85,164,.2)",
+    }}>
+      <span style={{ width: 32, fontSize: 13, color: "#8899bb", fontWeight: 700 }}>{rank}</span>
+      <span style={{ flex: 1, fontSize: "1.05rem", fontWeight: 600, color: "#e8eeff" }}>{entry.name}</span>
+      <span style={{ fontFamily: "monospace", fontSize: "1.1rem", fontWeight: 700, color: "#8ab4f8" }}>
         {formatTimeMs(entry.bestTimeMs)}
       </span>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Day tab
-// ---------------------------------------------------------------------------
-function DayTab({
-  day,
-  active,
-  onClick
-}: {
-  day: SimDay;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const label = day === "saturday" ? "Samstag" : "Sonntag";
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "8px 20px",
-        borderRadius: 8,
-        border: "none",
-        cursor: "pointer",
-        fontSize: 15,
-        fontWeight: 600,
-        background: active ? "#e63946" : "rgba(255,255,255,0.08)",
-        color: active ? "#fff" : "#94a3b8",
-        transition: "all .15s"
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main App
-// ---------------------------------------------------------------------------
+/* ─── Main ─────────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [day, setDay] = useState<SimDay>(() => {
-    const dow = new Date().getDay();
-    return dow === 6 ? "saturday" : "sunday";
-  });
+  const [day] = useState<SimDay>(currentDay);
   const [entries, setEntries] = useState<SimEntry[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState(false);
@@ -125,7 +101,10 @@ export default function App() {
   const load = useCallback(async () => {
     try {
       const res = await fetchLeaderboard(day);
-      setEntries(res.entries.filter((e) => e.day === day).sort((a, b) => a.bestTimeMs - b.bestTimeMs));
+      const sorted = [...res.entries]
+        .filter(e => e.day === day)
+        .sort((a, b) => a.bestTimeMs - b.bestTimeMs);
+      setEntries(sorted);
       setLastUpdated(new Date());
       setError(false);
     } catch {
@@ -135,172 +114,149 @@ export default function App() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const t = setInterval(load, POLL_MS);
+    return () => clearInterval(t);
   }, [load]);
 
   const top3 = entries.slice(0, 3);
-  const rest = entries.slice(3);
+  const rest  = entries.slice(3);
+  const scrollDur = Math.max(14, rest.length * 3);
 
-  // Scroll duration: 3s per extra entry, min 12s
-  const scrollDuration = Math.max(12, rest.length * 3);
-
-  // Duplicate rest list for seamless loop
-  const scrollList = rest.length > 0 ? [...rest, ...rest] : [];
+  /* visual order: 2nd  1st  3rd */
+  const podiumOrder = [top3[1], top3[0], top3[2]];
+  const heights = ["155px", "190px", "130px"];
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        background: "#0a0f1a",
-        color: "#f8fafc",
-        fontFamily: "system-ui, sans-serif",
-        overflow: "hidden"
-      }}
-    >
-      {/* ── Header ── */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 28px",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          flexShrink: 0
-        }}
-      >
+    <div style={{
+      display: "flex", flexDirection: "column", height: "100vh",
+      background: "var(--bg)", overflow: "hidden",
+    }}>
+
+      {/* ── HEADER ─────────────────────────────────────────────────────── */}
+      <header style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 24px 10px",
+        background: "linear-gradient(90deg, #162240 0%, #0d1829 100%)",
+        borderBottom: "2px solid #2455a4",
+        flexShrink: 0,
+      }}>
+        {/* left: logo + title */}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src="/msc-logo.png" alt="MSC Logo" style={{ height: 48 }} />
+          <img src="/msc-logo.png" alt="MSC Logo" style={{ height: 50, objectFit: "contain" }} />
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>Simulator-Bestenliste</div>
-            <div style={{ fontSize: 12, color: "#64748b" }}>MSC Oberlausitz · Dreiecksrennen</div>
+            <div style={{
+              fontSize: "clamp(1rem, 2.5vw, 1.4rem)",
+              fontWeight: 800, color: "#f0f4ff",
+              letterSpacing: "0.02em",
+              lineHeight: 1,
+            }}>
+              Simulator-Bestenliste
+            </div>
+            <div style={{
+              fontSize: "clamp(.7rem, 1.5vw, .85rem)",
+              color: "#f5c000",
+              fontWeight: 600,
+              marginTop: 3,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}>
+              MSC Oberlausitzer Dreiländereck · {dayLabel(day)}
+            </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <DayTab day="saturday" active={day === "saturday"} onClick={() => setDay("saturday")} />
-          <DayTab day="sunday" active={day === "sunday"} onClick={() => setDay("sunday")} />
-        </div>
-        <div style={{ fontSize: 12, color: "#475569", textAlign: "right" }}>
-          {error ? (
-            <span style={{ color: "#e63946" }}>⚠ Verbindungsfehler</span>
-          ) : lastUpdated ? (
-            <>
-              Aktualisiert{" "}
-              {lastUpdated.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-            </>
-          ) : (
-            "Lade…"
-          )}
+
+        {/* right: status */}
+        <div style={{ fontSize: 12, color: "#8899bb", textAlign: "right" }}>
+          {error
+            ? <span style={{ color: "#ef4444" }}>⚠ Verbindungsfehler</span>
+            : lastUpdated
+              ? <>Aktualisiert {lastUpdated.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</>
+              : "Lade…"
+          }
+          <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>
+            Aktualisierung alle {POLL_MS / 1000}s
+          </div>
         </div>
       </header>
 
-      {/* ── Body ── */}
+      {/* ── BODY ───────────────────────────────────────────────────────── */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {entries.length === 0 && !error ? (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-              color: "#475569"
-            }}
-          >
-            Noch keine Zeiten eingetragen.
+
+        {entries.length === 0 ? (
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            gap: 16,
+          }}>
+            <div style={{ fontSize: 48, opacity: .3 }}>🏁</div>
+            <div style={{ color: "#8899bb", fontSize: "1.1rem" }}>
+              Noch keine Zeiten für {dayLabel(day)} eingetragen.
+            </div>
           </div>
         ) : (
           <>
-            {/* ── Podium ── */}
-            <section
-              style={{
-                padding: "20px 28px 12px",
-                flexShrink: 0
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#64748b", marginBottom: 12 }}>
+            {/* PODIUM */}
+            <section style={{
+              padding: "28px 24px 16px",
+              flexShrink: 0,
+            }}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: "0.18em",
+                color: "#f5c000", textTransform: "uppercase", marginBottom: 20,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <div style={{ flex: 1, height: 1, background: "rgba(245,192,0,.3)" }} />
                 TOP 3
+                <div style={{ flex: 1, height: 1, background: "rgba(245,192,0,.3)" }} />
               </div>
+
               <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                {/* 2nd – 1st – 3rd visual order */}
-                {top3[1] && (
-                  <PodiumCard rank={1} entry={top3[1]} order="second" />
-                )}
-                {top3[0] && (
-                  <PodiumCard rank={0} entry={top3[0]} order="first" />
-                )}
-                {top3[2] && (
-                  <PodiumCard rank={2} entry={top3[2]} order="third" />
-                )}
-                {/* Placeholders when fewer than 3 entries */}
-                {top3.length < 3 &&
-                  Array.from({ length: 3 - top3.length }).map((_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        flex: 1,
-                        border: "2px dashed rgba(255,255,255,0.08)",
-                        borderRadius: 16,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "24px 0",
-                        color: "#334155",
-                        fontSize: 14
-                      }}
-                    >
-                      –
-                    </div>
-                  ))}
+                {podiumOrder.map((entry, i) => {
+                  if (!entry) return (
+                    <div key={i} style={{
+                      flex: 1, minHeight: heights[i],
+                      border: "2px dashed rgba(36,85,164,.25)",
+                      borderRadius: 16,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#2a3a55", fontSize: 18,
+                    }}>–</div>
+                  );
+                  const rankIndex = i === 0 ? 1 : i === 1 ? 0 : 2;
+                  return <Podium key={entry.id} entry={entry} rank={rankIndex} height={heights[i]} />;
+                })}
               </div>
             </section>
 
-            {/* ── Divider ── */}
+            {/* DIVIDER */}
             {rest.length > 0 && (
-              <div
-                style={{
-                  margin: "0 28px",
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                  marginBottom: 0
-                }}
-              />
+              <div style={{
+                margin: "0 24px",
+                borderTop: "1px solid rgba(36,85,164,.3)",
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "6px 0",
+              }}>
+                <span style={{ fontSize: 10, color: "#8899bb", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                  Weitere Platzierungen
+                </span>
+                <div style={{ flex: 1, height: 1, background: "rgba(36,85,164,.2)" }} />
+              </div>
             )}
 
-            {/* ── Scrolling rest ── */}
+            {/* SCROLLING LIST */}
             {rest.length > 0 && (
-              <section
-                style={{
-                  flex: 1,
-                  overflow: "hidden",
-                  position: "relative"
-                }}
-              >
-                {/* Gradient fade at bottom */}
+              <section style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+                {/* gradient fade */}
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0, height: 60, zIndex: 2,
+                  background: "linear-gradient(to bottom, transparent, #0b1423)",
+                  pointerEvents: "none",
+                }} />
                 <div
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 60,
-                    background: "linear-gradient(to bottom, transparent, #0a0f1a)",
-                    zIndex: 2,
-                    pointerEvents: "none"
-                  }}
-                />
-
-                <div
-                  className="scrolling-list"
-                  style={
-                    {
-                      "--scroll-duration": `${scrollDuration}s`
-                    } as React.CSSProperties
-                  }
+                  className="auto-scroll"
+                  style={{ "--dur": `${scrollDur}s` } as React.CSSProperties}
                 >
-                  {scrollList.map((entry, i) => (
-                    <ListRow key={`${entry.id}-${i}`} rank={i % rest.length + 4} entry={entry} />
+                  {[...rest, ...rest].map((e, i) => (
+                    <Row key={`${e.id}-${i}`} entry={e} rank={i % rest.length + 4} />
                   ))}
                 </div>
               </section>
@@ -309,20 +265,17 @@ export default function App() {
         )}
       </main>
 
-      {/* ── Footer ── */}
-      <footer
-        style={{
-          padding: "6px 28px",
-          borderTop: "1px solid rgba(255,255,255,0.05)",
-          fontSize: 11,
-          color: "#334155",
-          display: "flex",
-          justifyContent: "space-between",
-          flexShrink: 0
-        }}
-      >
+      {/* ── FOOTER ─────────────────────────────────────────────────────── */}
+      <footer style={{
+        padding: "5px 24px",
+        borderTop: "1px solid rgba(36,85,164,.2)",
+        fontSize: 10, color: "#2455a4",
+        display: "flex", justifyContent: "space-between",
+        flexShrink: 0,
+        background: "#0d1829",
+      }}>
         <span>sim.event.msc-oberlausitz.de</span>
-        <span>Zeiten werden alle {POLL_INTERVAL_MS / 1000}s aktualisiert</span>
+        <span>MSC Oberlausitzer Dreiländereck e.V.</span>
       </footer>
     </div>
   );
