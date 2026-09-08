@@ -9,195 +9,178 @@ function dayLabel(d: SimDay) {
   return d === "saturday" ? "Sa" : "So";
 }
 
-/* ── theme tokens ─────────────────────────────────────────────────────── */
-function tokens(dark: boolean) {
-  return dark ? {
-    pageBg:    "#07111f",
-    heroGrad:  "linear-gradient(160deg, #0f2040 0%, #07111f 60%)",
-    cardBg:    "rgba(255,255,255,.04)",
-    cardBdr:   "rgba(36,85,164,.4)",
-    textHero:  "#f0f6ff",
-    textName:  "#ddeeff",
-    textTime:  "#ffffff",
-    textMuted: "#5a7aaa",
-    timeAccent:"#f5c000",
-    divider:   "rgba(36,85,164,.25)",
-    rowHover:  "rgba(36,85,164,.12)",
-    rankClr:   "#3a5888",
-    listBg:    "#07111f",
-    footerBg:  "#040c18",
-    footerClr: "#1e3a6a",
-    gradFade:  "#07111f",
-    emptyClr:  "#1e3055",
-  } : {
-    pageBg:    "#dce6f5",
-    heroGrad:  "linear-gradient(160deg, #2455a4 0%, #1a3d7a 60%)",
-    cardBg:    "rgba(255,255,255,.85)",
-    cardBdr:   "rgba(36,85,164,.3)",
-    textHero:  "#ffffff",
-    textName:  "#ffffff",
-    textTime:  "#ffffff",
-    textMuted: "#8faacc",
-    timeAccent:"#f5c000",
-    divider:   "rgba(36,85,164,.2)",
-    rowHover:  "rgba(36,85,164,.07)",
-    rankClr:   "#6080b0",
-    listBg:    "#dce6f5",
-    footerBg:  "#1a3d7a",
-    footerClr: "#6090c0",
-    gradFade:  "#dce6f5",
-    emptyClr:  "#7090c0",
-  };
+/* ── Standard competition rank ────────────────────────────────────────────
+   Ties share a rank; the next distinct time gets rank = position + 1.
+   e.g. times [30, 30, 35] → ranks [1, 1, 3]
+────────────────────────────────────────────────────────────────────────── */
+type Ranked = { entry: SimEntry; rank: number };
+
+function computeRanks(sorted: SimEntry[]): Ranked[] {
+  return sorted.map((entry) => ({
+    entry,
+    rank: 1 + sorted.filter((e) => e.bestTimeMs < entry.bestTimeMs).length,
+  }));
 }
 
-const MEDAL_CLR = ["#f5c000", "#c0c0c0", "#cd7f32"];
-const MEDAL_GLOW = ["rgba(245,192,0,.5)", "rgba(192,192,192,.4)", "rgba(205,127,50,.4)"];
+/* ── Theme tokens ─────────────────────────────────────────────────────── */
+function tokens(dark: boolean) {
+  return dark
+    ? {
+        pageBg:   "#07111f",
+        heroGrad: "linear-gradient(160deg, #0f2040 0%, #07111f 60%)",
+        cardBg:   "rgba(255,255,255,.04)",
+        cardBdr:  "rgba(36,85,164,.4)",
+        textHero: "#f0f6ff",
+        textName: "#ddeeff",
+        textMuted:"#5a7aaa",
+        timeGold: "#f5c000",
+        divider:  "rgba(36,85,164,.25)",
+        rankClr:  "#3a5888",
+        listBg:   "#07111f",
+        footerBg: "#040c18",
+        footerClr:"#1e3a6a",
+        gradFade: "#07111f",
+        emptyClr: "#1e3055",
+      }
+    : {
+        pageBg:   "#dce6f5",
+        heroGrad: "linear-gradient(160deg, #2455a4 0%, #1a3d7a 60%)",
+        cardBg:   "rgba(255,255,255,.9)",
+        cardBdr:  "rgba(36,85,164,.3)",
+        textHero: "#ffffff",
+        textName: "#ffffff",
+        textMuted:"#8faacc",
+        timeGold: "#f5c000",
+        divider:  "rgba(36,85,164,.2)",
+        rankClr:  "#6080b0",
+        listBg:   "#dce6f5",
+        footerBg: "#1a3d7a",
+        footerClr:"#6090c0",
+        gradFade: "#dce6f5",
+        emptyClr: "#7090c0",
+      };
+}
 
-/* ── Winner card (full width) ─────────────────────────────────────────── */
-function WinnerCard({ entry, tk }: { entry: SimEntry; tk: ReturnType<typeof tokens> }) {
+const MEDAL = [
+  { clr: "#f5c000", glow: "rgba(245,192,0,.5)" },
+  { clr: "#c0c0c0", glow: "rgba(192,192,192,.4)" },
+  { clr: "#cd7f32", glow: "rgba(205,127,50,.4)" },
+];
+const medalFor = (rank: number) => MEDAL[rank - 1] ?? MEDAL[2];
+
+/* ── Winner hero ──────────────────────────────────────────────────────── */
+function WinnerCard({ item, tk }: { item: Ranked; tk: ReturnType<typeof tokens> }) {
+  const m = medalFor(item.rank);
   return (
-    <div style={{
-      position: "relative",
-      padding: "28px 36px 28px",
-      display: "flex",
-      alignItems: "center",
-      gap: 32,
-      overflow: "hidden",
-    }}>
-      {/* Number badge */}
+    <div style={{ padding: "28px 36px", display: "flex", alignItems: "center", gap: 28 }}>
       <div style={{
-        width: 64, height: 64,
-        borderRadius: "50%",
-        background: MEDAL_CLR[0],
+        width: 64, height: 64, borderRadius: "50%",
+        background: m.clr,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 28, fontWeight: 900, color: "#111",
-        boxShadow: `0 4px 24px ${MEDAL_GLOW[0]}`,
+        boxShadow: `0 4px 24px ${m.glow}`,
         flexShrink: 0,
-      }}>1</div>
-
-      {/* Name + day */}
+      }}>
+        {item.rank}
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: "clamp(1.8rem, 5vw, 3.2rem)",
-          fontWeight: 900,
-          color: tk.textHero,
-          lineHeight: 1,
-          letterSpacing: "-0.01em",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          fontWeight: 900, color: tk.textHero,
+          lineHeight: 1, letterSpacing: "-0.01em",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
-          {entry.name}
+          {item.entry.name}
         </div>
-        <div style={{ fontSize: 13, color: tk.textMuted, marginTop: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          {dayLabel(entry.day as SimDay)}
+        <div style={{ fontSize: 12, color: tk.textMuted, marginTop: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          {dayLabel(item.entry.day as SimDay)}
         </div>
       </div>
-
-      {/* Time */}
       <div style={{
         fontFamily: "monospace",
         fontSize: "clamp(2rem, 6vw, 4rem)",
-        fontWeight: 900,
-        color: tk.timeAccent,
-        letterSpacing: "0.04em",
-        lineHeight: 1,
-        flexShrink: 0,
-        textShadow: `0 0 32px ${MEDAL_GLOW[0]}`,
+        fontWeight: 900, color: m.clr,
+        letterSpacing: "0.04em", lineHeight: 1,
+        flexShrink: 0, textShadow: `0 0 32px ${m.glow}`,
       }}>
-        {formatTimeMs(entry.bestTimeMs)}
+        {formatTimeMs(item.entry.bestTimeMs)}
       </div>
     </div>
   );
 }
 
-/* ── Podium slot for #2 / #3 ─────────────────────────────────────────── */
-function PodiumSlot({ entry, rank, tk }: { entry: SimEntry; rank: number; tk: ReturnType<typeof tokens> }) {
-  const clr = MEDAL_CLR[rank];
-  const glow = MEDAL_GLOW[rank];
+/* ── Podium slot (#2 / #3) ────────────────────────────────────────────── */
+function PodiumSlot({ item, tk }: { item: Ranked; tk: ReturnType<typeof tokens> }) {
+  const m = medalFor(item.rank);
   return (
     <div style={{
-      flex: 1,
-      padding: "20px 24px",
+      flex: 1, padding: "18px 20px",
       background: tk.cardBg,
-      border: `1.5px solid ${clr}44`,
-      borderTop: `3px solid ${clr}`,
+      border: `1.5px solid ${m.clr}44`,
+      borderTop: `3px solid ${m.clr}`,
       borderRadius: 12,
-      display: "flex",
-      alignItems: "center",
-      gap: 16,
-      boxShadow: `0 4px 20px ${glow}`,
+      display: "flex", alignItems: "center", gap: 14,
+      boxShadow: `0 4px 20px ${m.glow}`,
     }}>
-      {/* Badge */}
       <div style={{
-        width: 40, height: 40,
-        borderRadius: "50%",
-        background: clr,
+        width: 38, height: 38, borderRadius: "50%",
+        background: m.clr,
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18, fontWeight: 900, color: "#111",
+        fontSize: 17, fontWeight: 900, color: "#111",
         flexShrink: 0,
-      }}>{rank + 1}</div>
-
+      }}>
+        {item.rank}
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: "clamp(1rem, 2.5vw, 1.4rem)",
-          fontWeight: 700,
+          fontSize: "clamp(1rem, 2.2vw, 1.3rem)", fontWeight: 700,
           color: tk.textName,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          lineHeight: 1.1,
-        }}>{entry.name}</div>
-        <div style={{ fontSize: 11, color: tk.textMuted, marginTop: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          {dayLabel(entry.day as SimDay)}
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {item.entry.name}
+        </div>
+        <div style={{ fontSize: 11, color: tk.textMuted, marginTop: 3, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          {dayLabel(item.entry.day as SimDay)}
         </div>
       </div>
-
-      <div style={{
-        fontFamily: "monospace",
-        fontSize: "clamp(1.1rem, 2.5vw, 1.6rem)",
-        fontWeight: 800,
-        color: clr,
-      }}>
-        {formatTimeMs(entry.bestTimeMs)}
+      <div style={{ fontFamily: "monospace", fontSize: "clamp(1rem, 2.2vw, 1.5rem)", fontWeight: 800, color: m.clr, flexShrink: 0 }}>
+        {formatTimeMs(item.entry.bestTimeMs)}
       </div>
     </div>
   );
 }
 
-/* ── List row for rank 4+ ─────────────────────────────────────────────── */
-function ListRow({ entry, rank, tk }: { entry: SimEntry; rank: number; tk: ReturnType<typeof tokens> }) {
+/* ── Scrolling list row ────────────────────────────────────────────────── */
+function ListRow({ item, tk }: { item: Ranked; tk: ReturnType<typeof tokens> }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "center",
-      padding: "11px 20px",
-      borderBottom: `1px solid ${tk.divider}`,
-    }}>
-      <span style={{ width: 36, fontSize: 13, fontWeight: 700, color: tk.rankClr }}>{rank}</span>
+    <div style={{ display: "flex", alignItems: "center", padding: "11px 20px", borderBottom: `1px solid ${tk.divider}` }}>
+      <span style={{ width: 36, fontSize: 13, fontWeight: 700, color: tk.rankClr }}>{item.rank}</span>
       <span style={{ flex: 1, fontSize: "1rem", fontWeight: 600, color: tk.textName, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {entry.name}
+        {item.entry.name}
       </span>
       <span style={{ fontSize: 11, color: tk.textMuted, marginRight: 16, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-        {dayLabel(entry.day as SimDay)}
+        {dayLabel(item.entry.day as SimDay)}
       </span>
       <span style={{ fontFamily: "monospace", fontSize: "1rem", fontWeight: 700, color: tk.textMuted }}>
-        {formatTimeMs(entry.bestTimeMs)}
+        {formatTimeMs(item.entry.bestTimeMs)}
       </span>
     </div>
   );
 }
 
-/* ── App ──────────────────────────────────────────────────────────────── */
+/* ── App ─────────────────────────────────────────────────────────────── */
 export default function App() {
   const [isDark, setIsDark] = useState(true);
-  const [entries, setEntries] = useState<SimEntry[]>([]);
+  const [ranked, setRanked] = useState<Ranked[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const [res, theme] = await Promise.all([fetchLeaderboard(), fetchTheme()]);
-      setEntries([...res.entries].sort((a, b) => a.bestTimeMs - b.bestTimeMs));
+      // Sort purely by time (API may return day-grouped)
+      const sorted = [...res.entries].sort((a, b) => a.bestTimeMs - b.bestTimeMs);
+      setRanked(computeRanks(sorted));
       setIsDark(theme === "dark");
       setLastUpdated(new Date());
       setError(false);
@@ -213,13 +196,21 @@ export default function App() {
   }, [load]);
 
   const tk = tokens(isDark);
-  const [p1, p2, p3, ...rest] = entries;
+
+  // Split: podium positions are always the first 3 distinct DISPLAY slots
+  // but we only split at entry 3 — ties still shown in their rank
+  const podium = ranked.slice(0, Math.min(3, ranked.length));
+  const rest   = ranked.slice(podium.length);
+  const [slot1, slot2, slot3] = podium;
+
   const scrollDur = Math.max(12, rest.length * 3);
+  // Duplicate rest for seamless infinite scroll; use precomputed rank (never index-derived)
+  const scrollItems = [...rest, ...rest];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: tk.pageBg, color: tk.textName, fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
 
-      {/* ── HEADER ─────────────────────────────────────────────────────── */}
+      {/* HEADER */}
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "10px 24px",
@@ -241,42 +232,40 @@ export default function App() {
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: error ? "#ef4444" : lastUpdated ? "#22c55e" : "#f5c00088", transition: "background .5s" }} />
       </header>
 
-      {/* ── BODY ───────────────────────────────────────────────────────── */}
+      {/* BODY */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-        {entries.length === 0 ? (
+        {ranked.length === 0 ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
             <div style={{ fontSize: 52, opacity: .25 }}>🏁</div>
             <div style={{ fontSize: "1.1rem", color: tk.emptyClr }}>Noch keine Zeiten eingetragen.</div>
           </div>
         ) : (
           <>
-            {/* HERO: Winner */}
+            {/* HERO – always the first entry (fastest) */}
             <div style={{ background: tk.heroGrad, flexShrink: 0, borderBottom: `1px solid ${tk.divider}` }}>
-              {p1 && <WinnerCard entry={p1} tk={tk} />}
+              {slot1 && <WinnerCard item={slot1} tk={tk} />}
             </div>
 
-            {/* P2 + P3 */}
-            {(p2 || p3) && (
+            {/* Slots 2 + 3 */}
+            {(slot2 || slot3) && (
               <div style={{ display: "flex", gap: 12, padding: "14px 20px", flexShrink: 0, background: tk.pageBg }}>
-                {p2 && <PodiumSlot entry={p2} rank={1} tk={tk} />}
-                {p3 && <PodiumSlot entry={p3} rank={2} tk={tk} />}
+                {slot2 && <PodiumSlot item={slot2} tk={tk} />}
+                {slot3 && <PodiumSlot item={slot3} tk={tk} />}
               </div>
             )}
 
-            {/* Rest */}
+            {/* Remaining – scrolling, ranks from precomputed values */}
             {rest.length > 0 && (
               <>
                 <div style={{ margin: "0 20px", borderTop: `1px solid ${tk.divider}`, display: "flex", alignItems: "center", gap: 10, padding: "5px 0", flexShrink: 0 }}>
                   <span style={{ fontSize: 10, color: tk.textMuted, letterSpacing: "0.14em", textTransform: "uppercase" }}>Weitere Platzierungen</span>
                   <div style={{ flex: 1, height: 1, background: tk.divider }} />
                 </div>
-
                 <section style={{ flex: 1, overflow: "hidden", position: "relative", background: tk.listBg }}>
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 50, background: `linear-gradient(to bottom, transparent, ${tk.gradFade})`, zIndex: 2, pointerEvents: "none" }} />
                   <div className="auto-scroll" style={{ "--dur": `${scrollDur}s` } as React.CSSProperties}>
-                    {[...rest, ...rest].map((e, i) => (
-                      <ListRow key={`${e.id}-${i}`} entry={e} rank={i % rest.length + 4} tk={tk} />
+                    {scrollItems.map((item, i) => (
+                      <ListRow key={`${item.entry.id}-${i}`} item={item} tk={tk} />
                     ))}
                   </div>
                 </section>
@@ -286,7 +275,7 @@ export default function App() {
         )}
       </main>
 
-      {/* ── FOOTER ─────────────────────────────────────────────────────── */}
+      {/* FOOTER */}
       <footer style={{ padding: "4px 24px", borderTop: `1px solid ${tk.divider}`, fontSize: 10, color: tk.footerClr, background: tk.footerBg, flexShrink: 0 }}>
         MSC Oberlausitzer Dreiländereck e.V.
       </footer>
